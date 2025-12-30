@@ -1,0 +1,51 @@
+# Cloud Build Configuration for Transfermarkt API
+# Automatic build and deployment to Cloud Run
+
+steps:
+  # Step 1: Build the Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/transfermarkt-api:$COMMIT_SHA"
+      - "-t"
+      - "us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/transfermarkt-api:latest"
+      - "."
+
+  # Step 2: Push image to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/transfermarkt-api:$COMMIT_SHA"
+
+  # Step 3: Deploy to Cloud Run
+  - name: "gcr.io/cloud-builders/gke-deploy"
+    args:
+      - "run"
+      - "--filename=cloudbuild-run-deploy.yaml"
+      - "--image=us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/transfermarkt-api:$COMMIT_SHA"
+      - "--location=us-central1"
+      - "--output=/workspace/output"
+
+# Images to be pushed to the registry
+images:
+  - "us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/transfermarkt-api:$COMMIT_SHA"
+  - "us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/transfermarkt-api:latest"
+
+# Timeout for the build
+timeout: "1800s"
+
+# Options
+options:
+  machineType: "N1_HIGHCPU_8"
+  logging: CLOUD_LOGGING_ONLY
+
+# Substitutions
+substitutions:
+  _REGION: "us-central1"
+  _SERVICE_NAME: "transfermarkt-api"
+
+# Environment variables
+env:
+  - "CLOUDSDK_COMPUTE_REGION=${_REGION}"
+  - "CLOUDSDK_RUN_REGION=${_REGION}"
